@@ -1,4 +1,4 @@
-<\!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -68,8 +68,8 @@ select:focus{outline:none;border-color:#888780}
 .period-info strong{font-weight:500}
 .prev-col{color:#888780;font-size:12px}
 .curr-col{font-weight:500}
-.curr-header{color:#1a1a18 \!important;font-weight:600 \!important}
-.prev-header{color:#b4b2a9 \!important}
+.curr-header{color:#1a1a18 !important;font-weight:600 !important}
+.prev-header{color:#b4b2a9 !important}
 .delta-pos{color:#3B6D11;font-size:11px}
 .delta-neg{color:#A32D2D;font-size:11px}
 .delta-neu{color:#888780;font-size:11px}
@@ -104,7 +104,7 @@ select:focus{outline:none;border-color:#888780}
 </div>
 <div class="container">
 
-  <\!-- WEEKLY -->
+  <!-- WEEKLY -->
   <div id="view-weekly">
     <div class="controls">
       <label>Año</label>
@@ -177,7 +177,7 @@ select:focus{outline:none;border-color:#888780}
     </div>
   </div>
 
-  <\!-- PERIOD -->
+  <!-- PERIOD -->
   <div id="view-period" class="section-hidden">
     <div class="controls">
       <label>Año</label>
@@ -242,9 +242,9 @@ function buildDataFromCSV(rows) {
   rows.forEach(r => {
     const week = r.semanaN;
     const id = parseInt(r.invernaderoVirtualId);
-    if (\!week || isNaN(id)) return;
+    if (!week || isNaN(id)) return;
 
-    if (\!weekMap[week]) weekMap[week] = [];
+    if (!weekMap[week]) weekMap[week] = [];
 
     const pf = (v) => { const x = parseFloat(v); return isNaN(x) ? null : x; };
 
@@ -276,21 +276,21 @@ function buildDataFromCSV(rows) {
     // Round numeric fields for display
     data.weekly[w] = arr.map(r => ({
       ...r,
-      kgSemanal: r.kgSemanal \!= null ? parseFloat(r.kgSemanal.toFixed(3)) : null,
-      kgDiario: r.kgDiario \!= null ? parseFloat(r.kgDiario.toFixed(3)) : null,
-      kgReal: r.kgReal \!= null ? parseFloat(r.kgReal.toFixed(3)) : null,
-      packout: r.packout \!= null ? parseFloat(r.packout.toFixed(3)) : null,
-      calif: r.calif \!= null ? parseFloat(r.calif.toFixed(2)) : null,
-      budget: r.budget \!= null ? parseFloat(r.budget.toFixed(3)) : null,
-      pron1w: r.pron1w \!= null ? parseFloat(r.pron1w.toFixed(3)) : null,
-      pron3w: r.pron3w \!= null ? parseFloat(r.pron3w.toFixed(3)) : null,
-      pron5w: r.pron5w \!= null ? parseFloat(r.pron5w.toFixed(3)) : null,
-      cPackout: r.cPackout \!= null ? parseFloat(r.cPackout.toFixed(2)) : null,
-      c1w: r.c1w \!= null ? parseFloat(r.c1w.toFixed(2)) : null,
-      c3w: r.c3w \!= null ? parseFloat(r.c3w.toFixed(2)) : null,
-      c5w: r.c5w \!= null ? parseFloat(r.c5w.toFixed(2)) : null,
-      cSemanal: r.cSemanal \!= null ? parseFloat(r.cSemanal.toFixed(2)) : null,
-      cDiario: r.cDiario \!= null ? parseFloat(r.cDiario.toFixed(2)) : null
+      kgSemanal: r.kgSemanal != null ? parseFloat(r.kgSemanal.toFixed(3)) : null,
+      kgDiario: r.kgDiario != null ? parseFloat(r.kgDiario.toFixed(3)) : null,
+      kgReal: r.kgReal != null ? parseFloat(r.kgReal.toFixed(3)) : null,
+      packout: r.packout != null ? parseFloat(r.packout.toFixed(3)) : null,
+      calif: r.calif != null ? parseFloat(r.calif.toFixed(2)) : null,
+      budget: r.budget != null ? parseFloat(r.budget.toFixed(3)) : null,
+      pron1w: r.pron1w != null ? parseFloat(r.pron1w.toFixed(3)) : null,
+      pron3w: r.pron3w != null ? parseFloat(r.pron3w.toFixed(3)) : null,
+      pron5w: r.pron5w != null ? parseFloat(r.pron5w.toFixed(3)) : null,
+      cPackout: r.cPackout != null ? parseFloat(r.cPackout.toFixed(2)) : null,
+      c1w: r.c1w != null ? parseFloat(r.c1w.toFixed(2)) : null,
+      c3w: r.c3w != null ? parseFloat(r.c3w.toFixed(2)) : null,
+      c5w: r.c5w != null ? parseFloat(r.c5w.toFixed(2)) : null,
+      cSemanal: r.cSemanal != null ? parseFloat(r.cSemanal.toFixed(2)) : null,
+      cDiario: r.cDiario != null ? parseFloat(r.cDiario.toFixed(2)) : null
     }));
   });
 
@@ -303,7 +303,7 @@ function buildDataFromCSV(rows) {
     const series = [];
     data.weeks.forEach(w => {
       const match = (data.weekly[w] || []).find(r => r.id === id);
-      if (match && match.calif \!= null) {
+      if (match && match.calif != null) {
         series.push({ w: w, v: match.calif });
       }
     });
@@ -315,7 +315,7 @@ function buildDataFromCSV(rows) {
   const weeksByYear = {};
   data.weeks.forEach(w => {
     const [num, yr] = w.split('-');
-    if (\!weeksByYear[yr]) weeksByYear[yr] = [];
+    if (!weeksByYear[yr]) weeksByYear[yr] = [];
     weeksByYear[yr].push({ label: w, num: parseInt(num) });
   });
 
@@ -328,11 +328,11 @@ function buildDataFromCSV(rows) {
       const pNum = Math.ceil(wk.num / 4);
       const pLabel = 'P' + pNum + '-' + yr;
       periodSet.add(pLabel);
-      if (\!periodAggr[pLabel]) periodAggr[pLabel] = {};
+      if (!periodAggr[pLabel]) periodAggr[pLabel] = {};
 
       (data.weekly[wk.label] || []).forEach(r => {
         if (r.calif == null) return;
-        if (\!periodAggr[pLabel][r.id]) periodAggr[pLabel][r.id] = [];
+        if (!periodAggr[pLabel][r.id]) periodAggr[pLabel][r.id] = [];
         periodAggr[pLabel][r.id].push(r.calif);
       });
     });
@@ -407,7 +407,7 @@ let periodBarChart = null, periodLineChart = null;
 let weekSelected = new Set();
 let periodSelected = new Set();
 
-function n(v, dec) { return v \!= null ? v.toFixed(dec \!== undefined ? dec : 3) : '—'; }
+function n(v, dec) { return v != null ? v.toFixed(dec !== undefined ? dec : 3) : '—'; }
 function pill(v) {
   if (v == null) return '<span class="pill pill-na">—</span>';
   if (v >= 7.5) return '<span class="pill pill-top">Alto</span>';
@@ -506,7 +506,7 @@ function filterMs(view, val) {
 document.addEventListener('click', function(e) {
   ['week','period'].forEach(v => {
     const wrap = document.getElementById(v+'MsWrap');
-    if (wrap && \!wrap.contains(e.target)) document.getElementById(v+'MsDropdown').classList.remove('open');
+    if (wrap && !wrap.contains(e.target)) document.getElementById(v+'MsDropdown').classList.remove('open');
   });
 });
 
@@ -514,8 +514,8 @@ function switchTab(tab) {
   document.querySelectorAll('.tab').forEach((t,i) => {
     t.classList.toggle('active', (i===0 && tab==='weekly') || (i===1 && tab==='period'));
   });
-  document.getElementById('view-weekly').classList.toggle('section-hidden', tab \!== 'weekly');
-  document.getElementById('view-period').classList.toggle('section-hidden', tab \!== 'period');
+  document.getElementById('view-weekly').classList.toggle('section-hidden', tab !== 'weekly');
+  document.getElementById('view-period').classList.toggle('section-hidden', tab !== 'period');
 }
 
 function buildLineDatasets(invIds, seriesData, labelKey) {
@@ -538,9 +538,9 @@ function buildLineLegend(invIds) {
 
 function renderWeekly() {
   const week = document.getElementById('weekSelect').value;
-  if (\!week) return;
+  if (!week) return;
   const rows = DATA.weekly[week] || [];
-  const califs = rows.map(r => r.calif).filter(v => v \!= null);
+  const califs = rows.map(r => r.calif).filter(v => v != null);
   const avg = califs.length ? (califs.reduce((a,b)=>a+b,0)/califs.length).toFixed(2) : '—';
   document.getElementById('weekMetrics').innerHTML =
     '<div class="metric-card"><div class="label">Invernaderos activos</div><div class="value">'+rows.length+'</div></div>'+
@@ -592,10 +592,10 @@ function renderWeekly() {
   const alignedDatasets = datasets.map(ds => {
     const filtered = ds.data.filter(pt => pt.x.split('-')[1] === year);
     const vals = new Array(activeLabels.length).fill(null);
-    filtered.forEach(pt => { if (weekIndexMap[pt.x] \!== undefined) vals[weekIndexMap[pt.x]] = pt.y; });
+    filtered.forEach(pt => { if (weekIndexMap[pt.x] !== undefined) vals[weekIndexMap[pt.x]] = pt.y; });
     return { ...ds, data: vals };
   });
-  const allVals = alignedDatasets.flatMap(ds => ds.data).filter(v => v \!= null);
+  const allVals = alignedDatasets.flatMap(ds => ds.data).filter(v => v != null);
   const yMin = allVals.length ? Math.max(0, parseFloat((Math.min(...allVals) - 0.5).toFixed(1))) : 0;
   const yMax = allVals.length ? Math.min(10, parseFloat((Math.max(...allVals) + 0.5).toFixed(1))) : 10;
   weekLineChart = new Chart(lineCanvas, {
@@ -606,7 +606,7 @@ function renderWeekly() {
       plugins:{legend:{display:false},tooltip:{
         callbacks:{
           title: items => 'Sem. '+items[0].label,
-          label: ctx => ' '+ctx.dataset.label+': '+(ctx.parsed.y \!= null ? ctx.parsed.y.toFixed(2) : '—')
+          label: ctx => ' '+ctx.dataset.label+': '+(ctx.parsed.y != null ? ctx.parsed.y.toFixed(2) : '—')
         }
       }},
       scales:{
@@ -618,7 +618,7 @@ function renderWeekly() {
 
   const filtered = weekSelected.size > 0 ? rows.filter(r => weekSelected.has(String(r.id))) : rows;
   const tbody = document.getElementById('weekTableBody');
-  if (\!filtered.length) {
+  if (!filtered.length) {
     tbody.innerHTML='<tr><td colspan="18" style="text-align:center;padding:32px;color:#b4b2a9">Sin resultados</td></tr>';
     return;
   }
@@ -656,7 +656,7 @@ function getPrevPeriods(period, cnt) {
 
 function renderPeriod() {
   const period = document.getElementById('periodSelect').value;
-  if (\!period) return;
+  if (!period) return;
   const rows = DATA.periodData[period] || [];
   const pNum = parseInt(period.split('P')[1].split('-')[0]);
   const pYear = period.split('-')[1];
@@ -715,10 +715,10 @@ function renderPeriod() {
   const alignedDatasets = datasets.map(ds => {
     const filtered = ds.data.filter(pt => pt.x.split('-')[1] === year);
     const vals = new Array(activeLabels.length).fill(null);
-    filtered.forEach(pt => { if (periodIndexMap[pt.x] \!== undefined) vals[periodIndexMap[pt.x]] = pt.y; });
+    filtered.forEach(pt => { if (periodIndexMap[pt.x] !== undefined) vals[periodIndexMap[pt.x]] = pt.y; });
     return { ...ds, data: vals };
   });
-  const allVals = alignedDatasets.flatMap(ds => ds.data).filter(v => v \!= null);
+  const allVals = alignedDatasets.flatMap(ds => ds.data).filter(v => v != null);
   const yMin = allVals.length ? Math.max(0, parseFloat((Math.min(...allVals) - 0.5).toFixed(1))) : 0;
   const yMax = allVals.length ? Math.min(10, parseFloat((Math.max(...allVals) + 0.5).toFixed(1))) : 10;
   periodLineChart = new Chart(lineCanvas, {
@@ -729,7 +729,7 @@ function renderPeriod() {
       plugins:{legend:{display:false},tooltip:{
         callbacks:{
           title: items => items[0].label,
-          label: ctx => ' '+ctx.dataset.label+': '+(ctx.parsed.y \!= null ? ctx.parsed.y.toFixed(2) : '—')
+          label: ctx => ' '+ctx.dataset.label+': '+(ctx.parsed.y != null ? ctx.parsed.y.toFixed(2) : '—')
         }
       }},
       scales:{
@@ -742,7 +742,7 @@ function renderPeriod() {
   const prevPeriods = getPrevPeriods(period, 3);
   const prevLabels = prevPeriods.map(p => p||'—');
   const prevMaps = prevPeriods.map(pp => {
-    if (\!pp||\!DATA.periodData[pp]) return {};
+    if (!pp||!DATA.periodData[pp]) return {};
     return Object.fromEntries(DATA.periodData[pp].map(r=>[r.id,r.avg]));
   });
   const rankMap = Object.fromEntries(rows.map((r,i)=>[r.id,i+1]));
@@ -755,16 +755,16 @@ function renderPeriod() {
     '<th class="prev-header">'+prevLabels[2]+'</th></tr>';
   document.getElementById('periodCompBody').innerHTML = filtered.map(r => {
     const rank = rankMap[r.id]||'—';
-    const p1 = prevMaps[0][r.id]\!=null?prevMaps[0][r.id]:null;
-    const p2 = prevMaps[1][r.id]\!=null?prevMaps[1][r.id]:null;
-    const p3 = prevMaps[2][r.id]\!=null?prevMaps[2][r.id]:null;
+    const p1 = prevMaps[0][r.id]!=null?prevMaps[0][r.id]:null;
+    const p2 = prevMaps[1][r.id]!=null?prevMaps[1][r.id]:null;
+    const p3 = prevMaps[2][r.id]!=null?prevMaps[2][r.id]:null;
     return '<tr>'+
       '<td>'+rankBadge(rank)+'</td>'+
       '<td>INV-'+r.id+'</td>'+
       '<td class="curr-col" style="color:'+califColor(r.avg)+'">'+r.avg.toFixed(2)+delta(r.avg,p1)+'</td>'+
-      '<td class="prev-col">'+(p1\!=null?p1.toFixed(2):'—')+'</td>'+
-      '<td class="prev-col">'+(p2\!=null?p2.toFixed(2):'—')+'</td>'+
-      '<td class="prev-col">'+(p3\!=null?p3.toFixed(2):'—')+'</td>'+
+      '<td class="prev-col">'+(p1!=null?p1.toFixed(2):'—')+'</td>'+
+      '<td class="prev-col">'+(p2!=null?p2.toFixed(2):'—')+'</td>'+
+      '<td class="prev-col">'+(p3!=null?p3.toFixed(2):'—')+'</td>'+
       '</tr>';
   }).join('');
 }

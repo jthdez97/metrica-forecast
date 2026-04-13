@@ -107,6 +107,12 @@ select:focus{outline:none;border-color:#888780}
   <!-- WEEKLY -->
   <div id="view-weekly">
     <div class="controls">
+      <label>Producto</label>
+      <select id="weekProducto" onchange="onWeekFilterChange()"></select>
+      <div class="ctrl-sep"></div>
+      <label>Ciclo</label>
+      <select id="weekCiclo" onchange="onWeekFilterChange()"></select>
+      <div class="ctrl-sep"></div>
       <label>Año</label>
       <select id="weekYear" onchange="onWeekYearChange()"></select>
       <div class="ctrl-sep"></div>
@@ -117,7 +123,7 @@ select:focus{outline:none;border-color:#888780}
       <div class="ms-wrap" id="weekMsWrap">
         <button class="ms-btn" id="weekMsBtn" onclick="toggleMs('week')">Todos los invernaderos</button>
         <div class="ms-dropdown" id="weekMsDropdown">
-          <div class="ms-search"><input type="text" id="weekMsSearch" placeholder="Buscar INV..." oninput="filterMs('week',this.value)"></div>
+          <div class="ms-search"><input type="text" id="weekMsSearch" placeholder="Buscar..." oninput="filterMs('week',this.value)"></div>
           <div class="ms-all" onclick="clearMs('week')">✕ Limpiar selección</div>
           <div id="weekMsItems"></div>
         </div>
@@ -147,7 +153,7 @@ select:focus{outline:none;border-color:#888780}
           <thead>
             <tr>
               <th rowspan="2" class="group-main">#</th>
-              <th rowspan="2" class="group-main">Inv.</th>
+              <th rowspan="2" class="group-main">Invernadero</th>
               <th rowspan="2" class="group-main">Calif.</th>
               <th rowspan="2" class="group-main">Nivel</th>
               <th colspan="3" class="group-prod th-border-l" style="text-align:center">Producción (kg/m²)</th>
@@ -180,6 +186,12 @@ select:focus{outline:none;border-color:#888780}
   <!-- PERIOD -->
   <div id="view-period" class="section-hidden">
     <div class="controls">
+      <label>Producto</label>
+      <select id="periodProducto" onchange="onPeriodFilterChange()"></select>
+      <div class="ctrl-sep"></div>
+      <label>Ciclo</label>
+      <select id="periodCiclo" onchange="onPeriodFilterChange()"></select>
+      <div class="ctrl-sep"></div>
       <label>Año</label>
       <select id="periodYear" onchange="onPeriodYearChange()"></select>
       <div class="ctrl-sep"></div>
@@ -190,7 +202,7 @@ select:focus{outline:none;border-color:#888780}
       <div class="ms-wrap" id="periodMsWrap">
         <button class="ms-btn" id="periodMsBtn" onclick="toggleMs('period')">Todos los invernaderos</button>
         <div class="ms-dropdown" id="periodMsDropdown">
-          <div class="ms-search"><input type="text" id="periodMsSearch" placeholder="Buscar INV..." oninput="filterMs('period',this.value)"></div>
+          <div class="ms-search"><input type="text" id="periodMsSearch" placeholder="Buscar..." oninput="filterMs('period',this.value)"></div>
           <div class="ms-all" onclick="clearMs('period')">✕ Limpiar selección</div>
           <div id="periodMsItems"></div>
         </div>
@@ -227,22 +239,32 @@ select:focus{outline:none;border-color:#888780}
 
 </div>
 <script>
+// ── Global raw data store ──────────────────────────────────────────────
+let RAW_ROWS = [];        // all parsed CSV rows
+let INV_NAMES = {};       // id -> invernaderoVirtual name
+let ALL_PRODUCTOS = [];   // unique products
+let ALL_CICLOS = [];      // unique ciclos
+let DATA = null;          // processed data for current filters
+
 // ── CSV → DATA transformer ──────────────────────────────────────────────
 function buildDataFromCSV(rows) {
   const data = { weeks: [], periods: [], weekly: {}, periodData: {}, weeklySeries: {}, periodSeries: {} };
 
-  // Sort helper for week labels like "15-2023"
   function weekSortKey(w) {
     const [num, yr] = w.split('-');
     return parseInt(yr) * 100 + parseInt(num);
   }
 
-  // Collect all unique weeks and build weekly data
-  const weekMap = {};  // week -> [ {row data} ]
+  const weekMap = {};
   rows.forEach(r => {
     const week = r.semanaN;
     const id = parseInt(r.invernaderoVirtualId);
     if (!week || isNaN(id)) return;
+
+    // Store name mapping
+    if (r.invernaderoVirtual) {
+      INV_NAMES[String(id)] = r.invernaderoVirtual;
+    }
 
     if (!weekMap[week]) weekMap[week] = [];
 
@@ -250,6 +272,7 @@ function buildDataFromCSV(rows) {
 
     weekMap[week].push({
       id: id,
+      name: r.invernaderoVirtual || ('INV-'+id),
       calif: pf(r.calificacionFinal),
       budget: pf(r.budget),
       pron1w: pf(r.pronosticoOneWeek),
@@ -268,12 +291,10 @@ function buildDataFromCSV(rows) {
     });
   });
 
-  // Sort weeks and build weekly object (sorted by calif desc within each week)
   data.weeks = Object.keys(weekMap).sort((a, b) => weekSortKey(a) - weekSortKey(b));
   data.weeks.forEach(w => {
     const arr = weekMap[w];
     arr.sort((a, b) => (b.calif || 0) - (a.calif || 0));
-    // Round numeric fields for display
     data.weekly[w] = arr.map(r => ({
       ...r,
       kgSemanal: r.kgSemanal != null ? parseFloat(r.kgSemanal.toFixed(3)) : null,
@@ -294,7 +315,7 @@ function buildDataFromCSV(rows) {
     }));
   });
 
-  // Build weeklySeries: { invId: [{w: weekLabel, v: calif}] }
+  // Build weeklySeries
   const allInvIds = new Set();
   data.weeks.forEach(w => {
     (data.weekly[w] || []).forEach(r => allInvIds.add(r.id));
@@ -310,8 +331,7 @@ function buildDataFromCSV(rows) {
     if (series.length > 0) data.weeklySeries[String(id)] = series;
   });
 
-  // Build periods: P1 = weeks 1-4, P2 = weeks 5-8, etc.
-  // Group weeks by year first
+  // Build periods
   const weeksByYear = {};
   data.weeks.forEach(w => {
     const [num, yr] = w.split('-');
@@ -320,7 +340,7 @@ function buildDataFromCSV(rows) {
   });
 
   const periodSet = new Set();
-  const periodAggr = {}; // periodLabel -> { invId -> [califs] }
+  const periodAggr = {};
 
   Object.keys(weeksByYear).sort().forEach(yr => {
     const wks = weeksByYear[yr].sort((a, b) => a.num - b.num);
@@ -332,33 +352,31 @@ function buildDataFromCSV(rows) {
 
       (data.weekly[wk.label] || []).forEach(r => {
         if (r.calif == null) return;
-        if (!periodAggr[pLabel][r.id]) periodAggr[pLabel][r.id] = [];
-        periodAggr[pLabel][r.id].push(r.calif);
+        if (!periodAggr[pLabel][r.id]) periodAggr[pLabel][r.id] = { califs: [], name: r.name };
+        periodAggr[pLabel][r.id].califs.push(r.calif);
       });
     });
   });
 
-  // Sort periods
   function periodSortKey(p) {
     const match = p.match(/P(\d+)-(\d+)/);
     return parseInt(match[2]) * 100 + parseInt(match[1]);
   }
   data.periods = [...periodSet].sort((a, b) => periodSortKey(a) - periodSortKey(b));
 
-  // Build periodData: { periodLabel: [{id, avg}] sorted by avg desc }
   data.periods.forEach(p => {
     const invMap = periodAggr[p] || {};
     const arr = [];
     Object.keys(invMap).forEach(idStr => {
-      const califs = invMap[idStr];
-      const avg = parseFloat((califs.reduce((a, b) => a + b, 0) / califs.length).toFixed(2));
-      arr.push({ id: parseInt(idStr), avg: avg });
+      const entry = invMap[idStr];
+      const avg = parseFloat((entry.califs.reduce((a, b) => a + b, 0) / entry.califs.length).toFixed(2));
+      arr.push({ id: parseInt(idStr), avg: avg, name: entry.name });
     });
     arr.sort((a, b) => b.avg - a.avg);
     data.periodData[p] = arr;
   });
 
-  // Build periodSeries: { invId: [{p: periodLabel, v: avg}] }
+  // Build periodSeries
   const allPeriodInvs = new Set();
   data.periods.forEach(p => {
     (data.periodData[p] || []).forEach(r => allPeriodInvs.add(r.id));
@@ -375,31 +393,60 @@ function buildDataFromCSV(rows) {
   return data;
 }
 
-// ── Load CSV and initialize ─────────────────────────────────────────────
-let DATA = null;
+// ── Get current week number ─────────────────────────────────────────────
+function getCurrentWeekInfo() {
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const dayOfYear = Math.floor((now - startOfYear) / 86400000) + 1;
+  const weekNum = Math.ceil(dayOfYear / 7);
+  return { week: weekNum, year: now.getFullYear() };
+}
 
+// ── Filter raw rows by producto and ciclo ───────────────────────────────
+function getFilteredRows(producto, ciclo) {
+  return RAW_ROWS.filter(r => {
+    if (producto !== 'Todos' && r.producto !== producto) return false;
+    if (ciclo !== 'Todos' && r.ciclo !== ciclo) return false;
+    return true;
+  });
+}
+
+// ── Load CSV and initialize ─────────────────────────────────────────────
 async function loadAndInit() {
   try {
-    const response = await fetch('Metrica_grower.csv');
+    const response = await fetch('Metrica_grower2.csv');
     const csvText = await response.text();
 
     const parsed = Papa.parse(csvText, {
       header: true,
       skipEmptyLines: true,
-      dynamicTyping: false  // we handle parsing ourselves
+      dynamicTyping: false
     });
 
-    DATA = buildDataFromCSV(parsed.data);
+    RAW_ROWS = parsed.data;
+
+    // Collect unique productos and ciclos
+    const prodSet = new Set();
+    const cicloSet = new Set();
+    RAW_ROWS.forEach(r => {
+      if (r.producto) prodSet.add(r.producto);
+      if (r.ciclo) cicloSet.add(r.ciclo);
+    });
+    ALL_PRODUCTOS = [...prodSet].sort();
+    ALL_CICLOS = [...cicloSet].sort();
+
+    // Build initial data with all rows
+    DATA = buildDataFromCSV(RAW_ROWS);
     document.getElementById('loading-overlay').style.display = 'none';
     initDashboard();
   } catch (err) {
     document.getElementById('loading-overlay').innerHTML =
       '<p style="color:#A32D2D;font-size:14px">Error al cargar los datos: ' + err.message +
-      '<br><br>Asegúrate de que el archivo <strong>Metrica_grower.csv</strong> esté en la misma carpeta que este HTML.</p>';
+      '<br><br>Asegúrate de que el archivo <strong>Metrica_grower2.csv</strong> esté en la misma carpeta que este HTML.</p>';
   }
 }
 
-// ── Dashboard logic (identical to original) ─────────────────────────────
+// ── Dashboard logic ─────────────────────────────────────────────────────
 const COLORS = ['#378ADD','#639922','#D85A30','#7F77DD','#BA7517','#1D9E75','#D4537E','#E24B4A','#5f5e5a','#0F6E56'];
 
 let weekBarChart = null, weekLineChart = null;
@@ -407,6 +454,7 @@ let periodBarChart = null, periodLineChart = null;
 let weekSelected = new Set();
 let periodSelected = new Set();
 
+function invName(id) { return INV_NAMES[String(id)] || ('INV-'+id); }
 function n(v, dec) { return v != null ? v.toFixed(dec !== undefined ? dec : 3) : '—'; }
 function pill(v) {
   if (v == null) return '<span class="pill pill-na">—</span>';
@@ -426,25 +474,106 @@ function delta(curr, prev) {
   return d > 0 ? '<span class="delta-pos"> ▲'+d.toFixed(2)+'</span>' : '<span class="delta-neg"> ▼'+Math.abs(d).toFixed(2)+'</span>';
 }
 
-function fillSelect(id, items, last) {
+function fillSelect(id, items, selectedValue) {
   const s = document.getElementById(id);
   s.innerHTML = '';
   items.forEach(v => { const o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o); });
-  if (last) s.value = items[items.length-1];
+  if (selectedValue && items.includes(selectedValue)) {
+    s.value = selectedValue;
+  } else if (items.length) {
+    s.value = items[items.length - 1];
+  }
+}
+
+function fillFilterSelect(id, items) {
+  const s = document.getElementById(id);
+  s.innerHTML = '<option value="Todos">Todos</option>';
+  items.forEach(v => { const o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o); });
 }
 
 function weeksForYear(y) { return DATA.weeks.filter(w => w.split('-')[1]===y); }
-function fillWeekSelect(y) {
-  fillSelect('weekSelect', weeksForYear(y).slice().reverse(), false);
-  document.getElementById('weekSelect').selectedIndex = 0;
+
+function findCurrentWeekLabel(weeksInYear) {
+  const info = getCurrentWeekInfo();
+  const target = info.week + '-' + info.year;
+  if (weeksInYear.includes(target)) return target;
+  // Try closest week
+  let best = null, bestDiff = Infinity;
+  weeksInYear.forEach(w => {
+    const [num, yr] = w.split('-');
+    if (parseInt(yr) === info.year) {
+      const diff = Math.abs(parseInt(num) - info.week);
+      if (diff < bestDiff) { bestDiff = diff; best = w; }
+    }
+  });
+  return best;
 }
-function onWeekYearChange() { fillWeekSelect(document.getElementById('weekYear').value); weekSelected.clear(); buildMs('week'); renderWeekly(); }
-function onWeekChange()     { weekSelected.clear(); buildMs('week'); renderWeekly(); }
+
+function fillWeekSelect(y, preferWeek) {
+  const weeks = weeksForYear(y).slice().reverse();
+  const s = document.getElementById('weekSelect');
+  s.innerHTML = '';
+  weeks.forEach(v => { const o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o); });
+  if (preferWeek && weeks.includes(preferWeek)) {
+    s.value = preferWeek;
+  } else {
+    s.selectedIndex = 0;
+  }
+}
+
+function rebuildData() {
+  const producto = document.getElementById('weekProducto').value;
+  const ciclo = document.getElementById('weekCiclo').value;
+  const filtered = getFilteredRows(producto, ciclo);
+  INV_NAMES = {};
+  DATA = buildDataFromCSV(filtered);
+}
+
+function onWeekFilterChange() {
+  rebuildData();
+  const weekYears = [...new Set(DATA.weeks.map(w => w.split('-')[1]))].sort();
+  const prevYear = document.getElementById('weekYear').value;
+  fillSelect('weekYear', weekYears, weekYears.includes(prevYear) ? prevYear : null);
+  const y = document.getElementById('weekYear').value;
+  const currentWeek = findCurrentWeekLabel(weeksForYear(y));
+  fillWeekSelect(y, currentWeek);
+  weekSelected.clear();
+  buildMs('week');
+  renderWeekly();
+}
+function onWeekYearChange() {
+  const y = document.getElementById('weekYear').value;
+  const currentWeek = findCurrentWeekLabel(weeksForYear(y));
+  fillWeekSelect(y, currentWeek);
+  weekSelected.clear();
+  buildMs('week');
+  renderWeekly();
+}
+function onWeekChange() { weekSelected.clear(); buildMs('week'); renderWeekly(); }
 
 function periodsForYear(y) { return DATA.periods.filter(p => p.split('-')[1]===y); }
 function fillPeriodSelect(y) {
-  fillSelect('periodSelect', periodsForYear(y).slice().reverse(), false);
+  fillSelect('periodSelect', periodsForYear(y).slice().reverse(), null);
   document.getElementById('periodSelect').selectedIndex = 0;
+}
+
+function rebuildDataPeriod() {
+  const producto = document.getElementById('periodProducto').value;
+  const ciclo = document.getElementById('periodCiclo').value;
+  const filtered = getFilteredRows(producto, ciclo);
+  INV_NAMES = {};
+  DATA = buildDataFromCSV(filtered);
+}
+
+function onPeriodFilterChange() {
+  rebuildDataPeriod();
+  const periodYears = [...new Set(DATA.periods.map(p => p.split('-')[1]))].sort();
+  const prevYear = document.getElementById('periodYear').value;
+  fillSelect('periodYear', periodYears, periodYears.includes(prevYear) ? prevYear : null);
+  fillPeriodSelect(document.getElementById('periodYear').value);
+  periodSelected.clear();
+  buildMs('period');
+  renderPeriod();
 }
 function onPeriodYearChange() { fillPeriodSelect(document.getElementById('periodYear').value); periodSelected.clear(); buildMs('period'); renderPeriod(); }
 function onPeriodChange()     { periodSelected.clear(); buildMs('period'); renderPeriod(); }
@@ -460,8 +589,9 @@ function buildMs(view) {
   container.innerHTML = '';
   rows.forEach(r => {
     const id = String(r.id);
+    const displayName = r.name || invName(r.id);
     const div = document.createElement('div');
-    div.className = 'ms-item'; div.dataset.id = id;
+    div.className = 'ms-item'; div.dataset.id = id; div.dataset.name = displayName.toLowerCase();
     const cb = document.createElement('input');
     cb.type = 'checkbox'; cb.id = view+'chk_'+id; cb.value = id;
     cb.checked = selected.has(id);
@@ -471,7 +601,7 @@ function buildMs(view) {
       isWeek ? renderWeekly() : renderPeriod();
     });
     const lb = document.createElement('label');
-    lb.htmlFor = view+'chk_'+id; lb.textContent = 'INV-'+r.id;
+    lb.htmlFor = view+'chk_'+id; lb.textContent = displayName;
     div.appendChild(cb); div.appendChild(lb);
     container.appendChild(div);
   });
@@ -482,7 +612,7 @@ function updateMsBtn(view) {
   const sel = view==='week' ? weekSelected : periodSelected;
   const btn = document.getElementById(view+'MsBtn');
   if (sel.size === 0) btn.textContent = 'Todos los invernaderos';
-  else if (sel.size === 1) btn.textContent = 'INV-'+[...sel][0];
+  else if (sel.size === 1) btn.textContent = invName([...sel][0]);
   else btn.textContent = sel.size + ' invernaderos';
 }
 function toggleMs(view) {
@@ -500,7 +630,9 @@ function clearMs(view) {
 function filterMs(view, val) {
   const q = val.toLowerCase();
   document.querySelectorAll('#'+view+'MsItems .ms-item').forEach(item => {
-    item.style.display = item.dataset.id.includes(q) || ('inv-'+item.dataset.id).includes(q) ? '' : 'none';
+    const nameMatch = (item.dataset.name || '').includes(q);
+    const idMatch = item.dataset.id.includes(q);
+    item.style.display = (nameMatch || idMatch) ? '' : 'none';
   });
 }
 document.addEventListener('click', function(e) {
@@ -516,13 +648,24 @@ function switchTab(tab) {
   });
   document.getElementById('view-weekly').classList.toggle('section-hidden', tab !== 'weekly');
   document.getElementById('view-period').classList.toggle('section-hidden', tab !== 'period');
+
+  // Sync filters when switching tabs
+  if (tab === 'period') {
+    document.getElementById('periodProducto').value = document.getElementById('weekProducto').value;
+    document.getElementById('periodCiclo').value = document.getElementById('weekCiclo').value;
+    onPeriodFilterChange();
+  } else {
+    document.getElementById('weekProducto').value = document.getElementById('periodProducto').value;
+    document.getElementById('weekCiclo').value = document.getElementById('periodCiclo').value;
+    onWeekFilterChange();
+  }
 }
 
 function buildLineDatasets(invIds, seriesData, labelKey) {
   return invIds.map((id, i) => {
     const series = seriesData[String(id)] || [];
     return {
-      label: 'INV-'+id,
+      label: invName(id),
       data: series.map(pt => ({ x: pt[labelKey], y: pt.v })),
       borderColor: COLORS[i % COLORS.length],
       backgroundColor: COLORS[i % COLORS.length] + '22',
@@ -532,7 +675,7 @@ function buildLineDatasets(invIds, seriesData, labelKey) {
 }
 function buildLineLegend(invIds) {
   return invIds.map((id, i) =>
-    '<span class="line-legend-item"><span class="line-legend-dot" style="background:'+COLORS[i%COLORS.length]+'"></span>INV-'+id+'</span>'
+    '<span class="line-legend-item"><span class="line-legend-dot" style="background:'+COLORS[i%COLORS.length]+'"></span>'+invName(id)+'</span>'
   ).join('');
 }
 
@@ -553,7 +696,7 @@ function renderWeekly() {
   weekBarChart = new Chart(document.getElementById('weekBarChart'), {
     type: 'bar',
     data: {
-      labels: top20.map(r => 'INV-'+r.id),
+      labels: top20.map(r => r.name || invName(r.id)),
       datasets: [{ label: 'Calif.', data: top20.map(r => r.calif),
         backgroundColor: top20.map(r => r.calif>=7.5?'#639922':r.calif>=5.5?'#378ADD':'#E24B4A'),
         borderRadius:3, borderSkipped:false }]
@@ -626,7 +769,7 @@ function renderWeekly() {
     const rank = rows.findIndex(x => x.id===r.id)+1;
     return '<tr>'+
       '<td>'+rankBadge(rank)+'</td>'+
-      '<td>INV-'+r.id+'</td>'+
+      '<td>'+(r.name || invName(r.id))+'</td>'+
       '<td style="font-weight:500;color:'+califColor(r.calif)+'">'+n(r.calif,2)+'</td>'+
       '<td>'+pill(r.calif)+'</td>'+
       '<td class="num td-border-l">'+n(r.kgReal)+'</td>'+
@@ -668,7 +811,7 @@ function renderPeriod() {
   document.getElementById('periodMetrics').innerHTML =
     '<div class="metric-card"><div class="label">Invernaderos evaluados</div><div class="value">'+rows.length+'</div></div>'+
     '<div class="metric-card"><div class="label">Promedio del periodo</div><div class="value">'+avg+'</div></div>'+
-    '<div class="metric-card"><div class="label">Mejor promedio</div><div class="value">'+(avgs.length?Math.max(...avgs).toFixed(2):'—')+'</div><div class="sub">INV-'+(rows[0]?rows[0].id:'')+'</div></div>'+
+    '<div class="metric-card"><div class="label">Mejor promedio</div><div class="value">'+(avgs.length?Math.max(...avgs).toFixed(2):'—')+'</div><div class="sub">'+(rows[0]?rows[0].name||invName(rows[0].id):'')+'</div></div>'+
     '<div class="metric-card"><div class="label">Semanas</div><div class="value">'+w1+'–'+w2+'</div><div class="sub">año '+pYear+'</div></div>';
 
   const top20 = rows.slice(0,20);
@@ -676,7 +819,7 @@ function renderPeriod() {
   periodBarChart = new Chart(document.getElementById('periodBarChart'), {
     type:'bar',
     data:{
-      labels:top20.map(r=>'INV-'+r.id),
+      labels:top20.map(r=>r.name||invName(r.id)),
       datasets:[{label:'Promedio',data:top20.map(r=>r.avg),
         backgroundColor:top20.map(r=>r.avg>=7.5?'#639922':r.avg>=5.5?'#378ADD':'#E24B4A'),
         borderRadius:3,borderSkipped:false}]
@@ -760,7 +903,7 @@ function renderPeriod() {
     const p3 = prevMaps[2][r.id]!=null?prevMaps[2][r.id]:null;
     return '<tr>'+
       '<td>'+rankBadge(rank)+'</td>'+
-      '<td>INV-'+r.id+'</td>'+
+      '<td>'+(r.name||invName(r.id))+'</td>'+
       '<td class="curr-col" style="color:'+califColor(r.avg)+'">'+r.avg.toFixed(2)+delta(r.avg,p1)+'</td>'+
       '<td class="prev-col">'+(p1!=null?p1.toFixed(2):'—')+'</td>'+
       '<td class="prev-col">'+(p2!=null?p2.toFixed(2):'—')+'</td>'+
@@ -770,13 +913,28 @@ function renderPeriod() {
 }
 
 function initDashboard() {
+  // Populate Producto and Ciclo filters for both views
+  fillFilterSelect('weekProducto', ALL_PRODUCTOS);
+  fillFilterSelect('weekCiclo', ALL_CICLOS);
+  fillFilterSelect('periodProducto', ALL_PRODUCTOS);
+  fillFilterSelect('periodCiclo', ALL_CICLOS);
+
+  // Weekly view
   const weekYears = [...new Set(DATA.weeks.map(w => w.split('-')[1]))].sort();
   const periodYears = [...new Set(DATA.periods.map(p => p.split('-')[1]))].sort();
-  fillSelect('weekYear', weekYears, true);
-  fillSelect('periodYear', periodYears, true);
-  fillWeekSelect(document.getElementById('weekYear').value);
+
+  // Default to current year
+  const currentYear = String(getCurrentWeekInfo().year);
+  fillSelect('weekYear', weekYears, weekYears.includes(currentYear) ? currentYear : null);
+  fillSelect('periodYear', periodYears, periodYears.includes(currentYear) ? currentYear : null);
+
+  // Default week to current week
+  const y = document.getElementById('weekYear').value;
+  const currentWeek = findCurrentWeekLabel(weeksForYear(y));
+  fillWeekSelect(y, currentWeek);
   buildMs('week');
   renderWeekly();
+
   fillPeriodSelect(document.getElementById('periodYear').value);
   buildMs('period');
   renderPeriod();

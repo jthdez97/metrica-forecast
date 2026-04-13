@@ -1,0 +1,789 @@
+<\!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dashboard Grower Performance</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a18;min-height:100vh}
+header{background:#fff;border-bottom:0.5px solid #d3d1c7;padding:16px 24px}
+header h1{font-size:18px;font-weight:500}
+header span{font-size:13px;color:#888780;display:block;margin-top:2px}
+.tabs{display:flex;background:#fff;border-bottom:0.5px solid #d3d1c7;padding:0 24px}
+.tab{padding:12px 20px;font-size:14px;color:#888780;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.tab.active{color:#1a1a18;border-bottom-color:#1a1a18;font-weight:500}
+.tab:hover:not(.active){color:#444441}
+.container{max-width:1400px;margin:0 auto;padding:24px}
+.controls{display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap}
+.controls label{font-size:13px;color:#5f5e5a;font-weight:500}
+.ctrl-sep{width:0.5px;height:24px;background:#d3d1c7;margin:0 4px}
+select{height:36px;padding:0 32px 0 12px;border:0.5px solid #d3d1c7;border-radius:8px;background:#fff;font-size:14px;color:#1a1a18;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888780' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+select:focus{outline:none;border-color:#888780}
+.ms-wrap{position:relative;display:inline-block}
+.ms-btn{height:36px;padding:0 32px 0 12px;border:0.5px solid #d3d1c7;border-radius:8px;background:#fff;font-size:14px;color:#1a1a18;cursor:pointer;min-width:170px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888780' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+.ms-btn:hover{border-color:#888780}
+.ms-dropdown{display:none;position:absolute;top:40px;left:0;z-index:1000;background:#fff;border:0.5px solid #d3d1c7;border-radius:8px;min-width:180px;max-height:300px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.08)}
+.ms-dropdown.open{display:block}
+.ms-search{padding:8px;border-bottom:0.5px solid #f1efe8;position:sticky;top:0;background:#fff;z-index:1}
+.ms-search input{width:100%;height:28px;padding:0 8px;border:0.5px solid #d3d1c7;border-radius:6px;font-size:12px;color:#1a1a18;outline:none}
+.ms-all{padding:7px 12px;font-size:12px;color:#185FA5;cursor:pointer;border-bottom:0.5px solid #f1efe8;font-weight:500}
+.ms-all:hover{background:#f5f5f3}
+.ms-item{display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:13px;cursor:pointer}
+.ms-item:hover{background:#f5f5f3}
+.ms-item input[type=checkbox]{accent-color:#185FA5;width:14px;height:14px;cursor:pointer;flex-shrink:0}
+.ms-item label{cursor:pointer;user-select:none}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.metric-card{background:#fff;border:0.5px solid #d3d1c7;border-radius:8px;padding:16px}
+.metric-card .label{font-size:12px;color:#888780;margin-bottom:4px}
+.metric-card .value{font-size:22px;font-weight:500}
+.metric-card .sub{font-size:11px;color:#b4b2a9;margin-top:2px}
+.chart-card{background:#fff;border:0.5px solid #d3d1c7;border-radius:12px;padding:20px;margin-bottom:20px}
+.chart-card h3{font-size:14px;font-weight:500;color:#5f5e5a;margin-bottom:16px}
+.charts-row{display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:20px}
+.charts-row .chart-card{margin-bottom:0}
+.table-wrap{overflow-x:auto}
+.ranking-table{width:100%;border-collapse:collapse;font-size:12px}
+.ranking-table th{text-align:left;padding:7px 10px;font-weight:500;color:#888780;font-size:11px;border-bottom:0.5px solid #d3d1c7;white-space:nowrap;background:#fff}
+.ranking-table th.group-prod{background:#f5f9f0;color:#3B6D11}
+.ranking-table th.group-pron{background:#f0f5fb;color:#185FA5}
+.ranking-table th.group-calif{background:#fdf5e8;color:#854F0B}
+.ranking-table th.group-main{background:#fff;color:#888780}
+.ranking-table td{padding:7px 10px;border-bottom:0.5px solid #f1efe8;white-space:nowrap}
+.ranking-table tr:hover td{background:#f9f9f7}
+.rank-badge{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:500}
+.rank-1{background:#FAC775;color:#412402}
+.rank-2{background:#D3D1C7;color:#2c2c2a}
+.rank-3{background:#f0997b;color:#4A1B0C}
+.rank-n{background:#f1efe8;color:#888780}
+.pill{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:500}
+.pill-top{background:#EAF3DE;color:#3B6D11}
+.pill-mid{background:#E6F1FB;color:#185FA5}
+.pill-low{background:#FCEBEB;color:#A32D2D}
+.pill-na{background:#f1efe8;color:#888780}
+.section-hidden{display:none}
+.period-info{background:#E6F1FB;border:0.5px solid #B5D4F4;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#185FA5}
+.period-info strong{font-weight:500}
+.prev-col{color:#888780;font-size:12px}
+.curr-col{font-weight:500}
+.curr-header{color:#1a1a18 \!important;font-weight:600 \!important}
+.prev-header{color:#b4b2a9 \!important}
+.delta-pos{color:#3B6D11;font-size:11px}
+.delta-neg{color:#A32D2D;font-size:11px}
+.delta-neu{color:#888780;font-size:11px}
+.num{text-align:right;color:#444441}
+.num-s{text-align:right;color:#5f5e5a;font-size:11px}
+.th-border-l{border-left:2px solid #e0ddd6}
+.td-border-l{border-left:2px solid #f0ede8}
+.line-legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin-bottom:12px}
+.line-legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:#5f5e5a}
+.line-legend-dot{width:12px;height:3px;border-radius:2px;flex-shrink:0}
+.no-data-msg{display:flex;align-items:center;justify-content:center;height:200px;color:#b4b2a9;font-size:13px}
+#loading-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:#f5f5f3;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999}
+#loading-overlay .spinner{width:40px;height:40px;border:3px solid #d3d1c7;border-top-color:#185FA5;border-radius:50%;animation:spin .8s linear infinite}
+#loading-overlay p{margin-top:16px;font-size:14px;color:#5f5e5a}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p>Cargando datos del CSV...</p>
+</div>
+
+<header>
+  <h1>Grower Performance Dashboard</h1>
+  <span>Métricas de accuracy y desempeño por invernadero virtual</span>
+</header>
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('weekly')">Ranking Semanal</div>
+  <div class="tab" onclick="switchTab('period')">Evaluación por Periodo</div>
+</div>
+<div class="container">
+
+  <\!-- WEEKLY -->
+  <div id="view-weekly">
+    <div class="controls">
+      <label>Año</label>
+      <select id="weekYear" onchange="onWeekYearChange()"></select>
+      <div class="ctrl-sep"></div>
+      <label>Semana</label>
+      <select id="weekSelect" onchange="onWeekChange()"></select>
+      <div class="ctrl-sep"></div>
+      <label>Invernadero</label>
+      <div class="ms-wrap" id="weekMsWrap">
+        <button class="ms-btn" id="weekMsBtn" onclick="toggleMs('week')">Todos los invernaderos</button>
+        <div class="ms-dropdown" id="weekMsDropdown">
+          <div class="ms-search"><input type="text" id="weekMsSearch" placeholder="Buscar INV..." oninput="filterMs('week',this.value)"></div>
+          <div class="ms-all" onclick="clearMs('week')">✕ Limpiar selección</div>
+          <div id="weekMsItems"></div>
+        </div>
+      </div>
+    </div>
+    <div class="metrics" id="weekMetrics"></div>
+    <div class="charts-row">
+      <div class="chart-card">
+        <h3>Top 20 — semana seleccionada</h3>
+        <div style="position:relative;width:100%;height:520px">
+          <canvas id="weekBarChart" role="img" aria-label="Ranking semanal"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>Evolución semanal — invernaderos seleccionados</h3>
+        <div id="weekLineLegend" class="line-legend"></div>
+        <div style="position:relative;width:100%;height:460px">
+          <canvas id="weekLineChart" role="img" aria-label="Serie de tiempo semanal"></canvas>
+          <div id="weekLineNoData" class="no-data-msg">Selecciona invernaderos en el filtro para ver su evolución</div>
+        </div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>Tabla de ranking — detalle completo</h3>
+      <div class="table-wrap">
+        <table class="ranking-table">
+          <thead>
+            <tr>
+              <th rowspan="2" class="group-main">#</th>
+              <th rowspan="2" class="group-main">Inv.</th>
+              <th rowspan="2" class="group-main">Calif.</th>
+              <th rowspan="2" class="group-main">Nivel</th>
+              <th colspan="3" class="group-prod th-border-l" style="text-align:center">Producción (kg/m²)</th>
+              <th colspan="4" class="group-pron th-border-l" style="text-align:center">Pronóstico (kg/m²)</th>
+              <th rowspan="2" class="group-prod th-border-l">Packout</th>
+              <th colspan="6" class="group-calif th-border-l" style="text-align:center">Calificaciones parciales</th>
+            </tr>
+            <tr>
+              <th class="group-prod th-border-l">kg Real</th>
+              <th class="group-prod">kg Semanal</th>
+              <th class="group-prod">kg Diario</th>
+              <th class="group-pron th-border-l">Budget</th>
+              <th class="group-pron">1 sem</th>
+              <th class="group-pron">3 sem</th>
+              <th class="group-pron">5 sem</th>
+              <th class="group-calif th-border-l">C. Packout</th>
+              <th class="group-calif">C. 1W</th>
+              <th class="group-calif">C. 3W</th>
+              <th class="group-calif">C. 5W</th>
+              <th class="group-calif">C. Sem.</th>
+              <th class="group-calif">C. Día</th>
+            </tr>
+          </thead>
+          <tbody id="weekTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <\!-- PERIOD -->
+  <div id="view-period" class="section-hidden">
+    <div class="controls">
+      <label>Año</label>
+      <select id="periodYear" onchange="onPeriodYearChange()"></select>
+      <div class="ctrl-sep"></div>
+      <label>Periodo</label>
+      <select id="periodSelect" onchange="onPeriodChange()"></select>
+      <div class="ctrl-sep"></div>
+      <label>Invernadero</label>
+      <div class="ms-wrap" id="periodMsWrap">
+        <button class="ms-btn" id="periodMsBtn" onclick="toggleMs('period')">Todos los invernaderos</button>
+        <div class="ms-dropdown" id="periodMsDropdown">
+          <div class="ms-search"><input type="text" id="periodMsSearch" placeholder="Buscar INV..." oninput="filterMs('period',this.value)"></div>
+          <div class="ms-all" onclick="clearMs('period')">✕ Limpiar selección</div>
+          <div id="periodMsItems"></div>
+        </div>
+      </div>
+    </div>
+    <div class="period-info" id="periodInfo"></div>
+    <div class="metrics" id="periodMetrics"></div>
+    <div class="charts-row">
+      <div class="chart-card">
+        <h3>Top 20 — periodo seleccionado</h3>
+        <div style="position:relative;width:100%;height:520px">
+          <canvas id="periodBarChart" role="img" aria-label="Ranking por periodo"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>Evolución por periodo — invernaderos seleccionados</h3>
+        <div id="periodLineLegend" class="line-legend"></div>
+        <div style="position:relative;width:100%;height:460px">
+          <canvas id="periodLineChart" role="img" aria-label="Serie de tiempo por periodo"></canvas>
+          <div id="periodLineNoData" class="no-data-msg">Selecciona invernaderos en el filtro para ver su evolución</div>
+        </div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>Tabla comparativa — periodo actual vs 3 anteriores</h3>
+      <div class="table-wrap">
+        <table class="ranking-table">
+          <thead id="periodCompHead"></thead>
+          <tbody id="periodCompBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+// ── CSV → DATA transformer ──────────────────────────────────────────────
+function buildDataFromCSV(rows) {
+  const data = { weeks: [], periods: [], weekly: {}, periodData: {}, weeklySeries: {}, periodSeries: {} };
+
+  // Sort helper for week labels like "15-2023"
+  function weekSortKey(w) {
+    const [num, yr] = w.split('-');
+    return parseInt(yr) * 100 + parseInt(num);
+  }
+
+  // Collect all unique weeks and build weekly data
+  const weekMap = {};  // week -> [ {row data} ]
+  rows.forEach(r => {
+    const week = r.semanaN;
+    const id = parseInt(r.invernaderoVirtualId);
+    if (\!week || isNaN(id)) return;
+
+    if (\!weekMap[week]) weekMap[week] = [];
+
+    const pf = (v) => { const x = parseFloat(v); return isNaN(x) ? null : x; };
+
+    weekMap[week].push({
+      id: id,
+      calif: pf(r.calificacionFinal),
+      budget: pf(r.budget),
+      pron1w: pf(r.pronosticoOneWeek),
+      pron3w: pf(r.pronosticoThreeWeek),
+      pron5w: pf(r.pronosticoFiveWeek),
+      kgSemanal: pf(r.kgSemanal),
+      kgDiario: pf(r.kgDiario),
+      kgReal: pf(r.kgReal),
+      packout: pf(r.packout),
+      cPackout: pf(r.calif_packout),
+      c5w: pf(r.calif_5Wvsreal),
+      c3w: pf(r.calif_3Wvsreal),
+      c1w: pf(r.calif_1Wvsreal),
+      cSemanal: pf(r.calif_SemanalvsReal),
+      cDiario: pf(r.calif_DiariovsReal)
+    });
+  });
+
+  // Sort weeks and build weekly object (sorted by calif desc within each week)
+  data.weeks = Object.keys(weekMap).sort((a, b) => weekSortKey(a) - weekSortKey(b));
+  data.weeks.forEach(w => {
+    const arr = weekMap[w];
+    arr.sort((a, b) => (b.calif || 0) - (a.calif || 0));
+    // Round numeric fields for display
+    data.weekly[w] = arr.map(r => ({
+      ...r,
+      kgSemanal: r.kgSemanal \!= null ? parseFloat(r.kgSemanal.toFixed(3)) : null,
+      kgDiario: r.kgDiario \!= null ? parseFloat(r.kgDiario.toFixed(3)) : null,
+      kgReal: r.kgReal \!= null ? parseFloat(r.kgReal.toFixed(3)) : null,
+      packout: r.packout \!= null ? parseFloat(r.packout.toFixed(3)) : null,
+      calif: r.calif \!= null ? parseFloat(r.calif.toFixed(2)) : null,
+      budget: r.budget \!= null ? parseFloat(r.budget.toFixed(3)) : null,
+      pron1w: r.pron1w \!= null ? parseFloat(r.pron1w.toFixed(3)) : null,
+      pron3w: r.pron3w \!= null ? parseFloat(r.pron3w.toFixed(3)) : null,
+      pron5w: r.pron5w \!= null ? parseFloat(r.pron5w.toFixed(3)) : null,
+      cPackout: r.cPackout \!= null ? parseFloat(r.cPackout.toFixed(2)) : null,
+      c1w: r.c1w \!= null ? parseFloat(r.c1w.toFixed(2)) : null,
+      c3w: r.c3w \!= null ? parseFloat(r.c3w.toFixed(2)) : null,
+      c5w: r.c5w \!= null ? parseFloat(r.c5w.toFixed(2)) : null,
+      cSemanal: r.cSemanal \!= null ? parseFloat(r.cSemanal.toFixed(2)) : null,
+      cDiario: r.cDiario \!= null ? parseFloat(r.cDiario.toFixed(2)) : null
+    }));
+  });
+
+  // Build weeklySeries: { invId: [{w: weekLabel, v: calif}] }
+  const allInvIds = new Set();
+  data.weeks.forEach(w => {
+    (data.weekly[w] || []).forEach(r => allInvIds.add(r.id));
+  });
+  allInvIds.forEach(id => {
+    const series = [];
+    data.weeks.forEach(w => {
+      const match = (data.weekly[w] || []).find(r => r.id === id);
+      if (match && match.calif \!= null) {
+        series.push({ w: w, v: match.calif });
+      }
+    });
+    if (series.length > 0) data.weeklySeries[String(id)] = series;
+  });
+
+  // Build periods: P1 = weeks 1-4, P2 = weeks 5-8, etc.
+  // Group weeks by year first
+  const weeksByYear = {};
+  data.weeks.forEach(w => {
+    const [num, yr] = w.split('-');
+    if (\!weeksByYear[yr]) weeksByYear[yr] = [];
+    weeksByYear[yr].push({ label: w, num: parseInt(num) });
+  });
+
+  const periodSet = new Set();
+  const periodAggr = {}; // periodLabel -> { invId -> [califs] }
+
+  Object.keys(weeksByYear).sort().forEach(yr => {
+    const wks = weeksByYear[yr].sort((a, b) => a.num - b.num);
+    wks.forEach(wk => {
+      const pNum = Math.ceil(wk.num / 4);
+      const pLabel = 'P' + pNum + '-' + yr;
+      periodSet.add(pLabel);
+      if (\!periodAggr[pLabel]) periodAggr[pLabel] = {};
+
+      (data.weekly[wk.label] || []).forEach(r => {
+        if (r.calif == null) return;
+        if (\!periodAggr[pLabel][r.id]) periodAggr[pLabel][r.id] = [];
+        periodAggr[pLabel][r.id].push(r.calif);
+      });
+    });
+  });
+
+  // Sort periods
+  function periodSortKey(p) {
+    const match = p.match(/P(\d+)-(\d+)/);
+    return parseInt(match[2]) * 100 + parseInt(match[1]);
+  }
+  data.periods = [...periodSet].sort((a, b) => periodSortKey(a) - periodSortKey(b));
+
+  // Build periodData: { periodLabel: [{id, avg}] sorted by avg desc }
+  data.periods.forEach(p => {
+    const invMap = periodAggr[p] || {};
+    const arr = [];
+    Object.keys(invMap).forEach(idStr => {
+      const califs = invMap[idStr];
+      const avg = parseFloat((califs.reduce((a, b) => a + b, 0) / califs.length).toFixed(2));
+      arr.push({ id: parseInt(idStr), avg: avg });
+    });
+    arr.sort((a, b) => b.avg - a.avg);
+    data.periodData[p] = arr;
+  });
+
+  // Build periodSeries: { invId: [{p: periodLabel, v: avg}] }
+  const allPeriodInvs = new Set();
+  data.periods.forEach(p => {
+    (data.periodData[p] || []).forEach(r => allPeriodInvs.add(r.id));
+  });
+  allPeriodInvs.forEach(id => {
+    const series = [];
+    data.periods.forEach(p => {
+      const match = (data.periodData[p] || []).find(r => r.id === id);
+      if (match) series.push({ p: p, v: match.avg });
+    });
+    if (series.length > 0) data.periodSeries[String(id)] = series;
+  });
+
+  return data;
+}
+
+// ── Load CSV and initialize ─────────────────────────────────────────────
+let DATA = null;
+
+async function loadAndInit() {
+  try {
+    const response = await fetch('Metrica_grower.csv');
+    const csvText = await response.text();
+
+    const parsed = Papa.parse(csvText, {
+      header: true,
+      skipEmptyLines: true,
+      dynamicTyping: false  // we handle parsing ourselves
+    });
+
+    DATA = buildDataFromCSV(parsed.data);
+    document.getElementById('loading-overlay').style.display = 'none';
+    initDashboard();
+  } catch (err) {
+    document.getElementById('loading-overlay').innerHTML =
+      '<p style="color:#A32D2D;font-size:14px">Error al cargar los datos: ' + err.message +
+      '<br><br>Asegúrate de que el archivo <strong>Metrica_grower.csv</strong> esté en la misma carpeta que este HTML.</p>';
+  }
+}
+
+// ── Dashboard logic (identical to original) ─────────────────────────────
+const COLORS = ['#378ADD','#639922','#D85A30','#7F77DD','#BA7517','#1D9E75','#D4537E','#E24B4A','#5f5e5a','#0F6E56'];
+
+let weekBarChart = null, weekLineChart = null;
+let periodBarChart = null, periodLineChart = null;
+let weekSelected = new Set();
+let periodSelected = new Set();
+
+function n(v, dec) { return v \!= null ? v.toFixed(dec \!== undefined ? dec : 3) : '—'; }
+function pill(v) {
+  if (v == null) return '<span class="pill pill-na">—</span>';
+  if (v >= 7.5) return '<span class="pill pill-top">Alto</span>';
+  if (v >= 5.5) return '<span class="pill pill-mid">Medio</span>';
+  return '<span class="pill pill-low">Bajo</span>';
+}
+function rankBadge(r) {
+  const cls = r===1?'rank-1':r===2?'rank-2':r===3?'rank-3':'rank-n';
+  return '<span class="rank-badge '+cls+'">'+r+'</span>';
+}
+function califColor(v) { return v >= 7.5 ? '#3B6D11' : v >= 5.5 ? '#185FA5' : '#A32D2D'; }
+function delta(curr, prev) {
+  if (prev == null || curr == null) return '';
+  const d = curr - prev;
+  if (Math.abs(d) < 0.01) return '<span class="delta-neu"> →</span>';
+  return d > 0 ? '<span class="delta-pos"> ▲'+d.toFixed(2)+'</span>' : '<span class="delta-neg"> ▼'+Math.abs(d).toFixed(2)+'</span>';
+}
+
+function fillSelect(id, items, last) {
+  const s = document.getElementById(id);
+  s.innerHTML = '';
+  items.forEach(v => { const o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o); });
+  if (last) s.value = items[items.length-1];
+}
+
+function weeksForYear(y) { return DATA.weeks.filter(w => w.split('-')[1]===y); }
+function fillWeekSelect(y) {
+  fillSelect('weekSelect', weeksForYear(y).slice().reverse(), false);
+  document.getElementById('weekSelect').selectedIndex = 0;
+}
+function onWeekYearChange() { fillWeekSelect(document.getElementById('weekYear').value); weekSelected.clear(); buildMs('week'); renderWeekly(); }
+function onWeekChange()     { weekSelected.clear(); buildMs('week'); renderWeekly(); }
+
+function periodsForYear(y) { return DATA.periods.filter(p => p.split('-')[1]===y); }
+function fillPeriodSelect(y) {
+  fillSelect('periodSelect', periodsForYear(y).slice().reverse(), false);
+  document.getElementById('periodSelect').selectedIndex = 0;
+}
+function onPeriodYearChange() { fillPeriodSelect(document.getElementById('periodYear').value); periodSelected.clear(); buildMs('period'); renderPeriod(); }
+function onPeriodChange()     { periodSelected.clear(); buildMs('period'); renderPeriod(); }
+
+function buildMs(view) {
+  const isWeek = view === 'week';
+  const selected = isWeek ? weekSelected : periodSelected;
+  const key = isWeek ? document.getElementById('weekSelect').value : document.getElementById('periodSelect').value;
+  const rows = isWeek ? (DATA.weekly[key]||[]) : (DATA.periodData[key]||[]);
+  const container = document.getElementById(view+'MsItems');
+  const search = document.getElementById(view+'MsSearch');
+  if (search) search.value = '';
+  container.innerHTML = '';
+  rows.forEach(r => {
+    const id = String(r.id);
+    const div = document.createElement('div');
+    div.className = 'ms-item'; div.dataset.id = id;
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.id = view+'chk_'+id; cb.value = id;
+    cb.checked = selected.has(id);
+    cb.addEventListener('change', function() {
+      if (this.checked) selected.add(id); else selected.delete(id);
+      updateMsBtn(view);
+      isWeek ? renderWeekly() : renderPeriod();
+    });
+    const lb = document.createElement('label');
+    lb.htmlFor = view+'chk_'+id; lb.textContent = 'INV-'+r.id;
+    div.appendChild(cb); div.appendChild(lb);
+    container.appendChild(div);
+  });
+  updateMsBtn(view);
+}
+
+function updateMsBtn(view) {
+  const sel = view==='week' ? weekSelected : periodSelected;
+  const btn = document.getElementById(view+'MsBtn');
+  if (sel.size === 0) btn.textContent = 'Todos los invernaderos';
+  else if (sel.size === 1) btn.textContent = 'INV-'+[...sel][0];
+  else btn.textContent = sel.size + ' invernaderos';
+}
+function toggleMs(view) {
+  const dd = document.getElementById(view+'MsDropdown');
+  dd.classList.toggle('open');
+  if (dd.classList.contains('open')) document.getElementById(view+'MsSearch').focus();
+}
+function clearMs(view) {
+  const sel = view==='week' ? weekSelected : periodSelected;
+  sel.clear();
+  document.querySelectorAll('#'+view+'MsItems input').forEach(cb => cb.checked = false);
+  updateMsBtn(view);
+  view==='week' ? renderWeekly() : renderPeriod();
+}
+function filterMs(view, val) {
+  const q = val.toLowerCase();
+  document.querySelectorAll('#'+view+'MsItems .ms-item').forEach(item => {
+    item.style.display = item.dataset.id.includes(q) || ('inv-'+item.dataset.id).includes(q) ? '' : 'none';
+  });
+}
+document.addEventListener('click', function(e) {
+  ['week','period'].forEach(v => {
+    const wrap = document.getElementById(v+'MsWrap');
+    if (wrap && \!wrap.contains(e.target)) document.getElementById(v+'MsDropdown').classList.remove('open');
+  });
+});
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', (i===0 && tab==='weekly') || (i===1 && tab==='period'));
+  });
+  document.getElementById('view-weekly').classList.toggle('section-hidden', tab \!== 'weekly');
+  document.getElementById('view-period').classList.toggle('section-hidden', tab \!== 'period');
+}
+
+function buildLineDatasets(invIds, seriesData, labelKey) {
+  return invIds.map((id, i) => {
+    const series = seriesData[String(id)] || [];
+    return {
+      label: 'INV-'+id,
+      data: series.map(pt => ({ x: pt[labelKey], y: pt.v })),
+      borderColor: COLORS[i % COLORS.length],
+      backgroundColor: COLORS[i % COLORS.length] + '22',
+      borderWidth: 2, pointRadius: 3, pointHoverRadius: 5, tension: 0.3, fill: false,
+    };
+  });
+}
+function buildLineLegend(invIds) {
+  return invIds.map((id, i) =>
+    '<span class="line-legend-item"><span class="line-legend-dot" style="background:'+COLORS[i%COLORS.length]+'"></span>INV-'+id+'</span>'
+  ).join('');
+}
+
+function renderWeekly() {
+  const week = document.getElementById('weekSelect').value;
+  if (\!week) return;
+  const rows = DATA.weekly[week] || [];
+  const califs = rows.map(r => r.calif).filter(v => v \!= null);
+  const avg = califs.length ? (califs.reduce((a,b)=>a+b,0)/califs.length).toFixed(2) : '—';
+  document.getElementById('weekMetrics').innerHTML =
+    '<div class="metric-card"><div class="label">Invernaderos activos</div><div class="value">'+rows.length+'</div></div>'+
+    '<div class="metric-card"><div class="label">Calif. promedio</div><div class="value">'+avg+'</div><div class="sub">semana '+week+'</div></div>'+
+    '<div class="metric-card"><div class="label">Mejor</div><div class="value">'+(califs.length?Math.max(...califs).toFixed(2):'—')+'</div></div>'+
+    '<div class="metric-card"><div class="label">Menor</div><div class="value">'+(califs.length?Math.min(...califs).toFixed(2):'—')+'</div></div>';
+
+  const top20 = rows.slice(0, 20);
+  if (weekBarChart) weekBarChart.destroy();
+  weekBarChart = new Chart(document.getElementById('weekBarChart'), {
+    type: 'bar',
+    data: {
+      labels: top20.map(r => 'INV-'+r.id),
+      datasets: [{ label: 'Calif.', data: top20.map(r => r.calif),
+        backgroundColor: top20.map(r => r.calif>=7.5?'#639922':r.calif>=5.5?'#378ADD':'#E24B4A'),
+        borderRadius:3, borderSkipped:false }]
+    },
+    options: {
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.raw.toFixed(2)}}},
+      scales:{
+        x:{min:0,max:10,grid:{color:'#f1efe8'},ticks:{font:{size:11}}},
+        y:{grid:{display:false},ticks:{font:{size:11}}}
+      }
+    }
+  });
+
+  const year = document.getElementById('weekYear').value;
+  const allWeeksYear = DATA.weeks.filter(w => w.split('-')[1]===year);
+  const selectedIds = weekSelected.size > 0 ? [...weekSelected].map(Number) : [];
+  const lineCanvas = document.getElementById('weekLineChart');
+  const legendEl = document.getElementById('weekLineLegend');
+  const noDataEl = document.getElementById('weekLineNoData');
+  if (weekLineChart) weekLineChart.destroy();
+  const displayIds = selectedIds.length > 0 ? selectedIds : rows.map(r => r.id);
+  lineCanvas.style.display = 'block';
+  noDataEl.style.display = 'none';
+  legendEl.innerHTML = displayIds.length <= 8 ? buildLineLegend(displayIds) : '';
+  const datasets = buildLineDatasets(displayIds, DATA.weeklySeries, 'w');
+  const weeksWithData = new Set();
+  datasets.forEach(ds => ds.data.filter(pt => pt.x.split('-')[1] === year).forEach(pt => weeksWithData.add(pt.x)));
+  const trimmedWeeks = allWeeksYear.filter(w => {
+    const wNum = parseInt(w.split('-')[0]);
+    const wNums = [...weeksWithData].map(x => parseInt(x.split('-')[0]));
+    return wNums.length && wNum >= Math.min(...wNums) && wNum <= Math.max(...wNums);
+  });
+  const activeLabels = trimmedWeeks.length ? trimmedWeeks : allWeeksYear;
+  const weekIndexMap = Object.fromEntries(activeLabels.map((w,i) => [w,i]));
+  const alignedDatasets = datasets.map(ds => {
+    const filtered = ds.data.filter(pt => pt.x.split('-')[1] === year);
+    const vals = new Array(activeLabels.length).fill(null);
+    filtered.forEach(pt => { if (weekIndexMap[pt.x] \!== undefined) vals[weekIndexMap[pt.x]] = pt.y; });
+    return { ...ds, data: vals };
+  });
+  const allVals = alignedDatasets.flatMap(ds => ds.data).filter(v => v \!= null);
+  const yMin = allVals.length ? Math.max(0, parseFloat((Math.min(...allVals) - 0.5).toFixed(1))) : 0;
+  const yMax = allVals.length ? Math.min(10, parseFloat((Math.max(...allVals) + 0.5).toFixed(1))) : 10;
+  weekLineChart = new Chart(lineCanvas, {
+    type: 'line',
+    data: { labels: activeLabels, datasets: alignedDatasets },
+    options: {
+      responsive:true, maintainAspectRatio:false, spanGaps: true,
+      plugins:{legend:{display:false},tooltip:{
+        callbacks:{
+          title: items => 'Sem. '+items[0].label,
+          label: ctx => ' '+ctx.dataset.label+': '+(ctx.parsed.y \!= null ? ctx.parsed.y.toFixed(2) : '—')
+        }
+      }},
+      scales:{
+        x:{type:'category',grid:{color:'#f1efe8'},ticks:{font:{size:10},maxRotation:45,autoSkip:true,maxTicksLimit:18}},
+        y:{min:yMin,max:yMax,grid:{color:'#f1efe8'},ticks:{font:{size:11}}}
+      }
+    }
+  });
+
+  const filtered = weekSelected.size > 0 ? rows.filter(r => weekSelected.has(String(r.id))) : rows;
+  const tbody = document.getElementById('weekTableBody');
+  if (\!filtered.length) {
+    tbody.innerHTML='<tr><td colspan="18" style="text-align:center;padding:32px;color:#b4b2a9">Sin resultados</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(r => {
+    const rank = rows.findIndex(x => x.id===r.id)+1;
+    return '<tr>'+
+      '<td>'+rankBadge(rank)+'</td>'+
+      '<td>INV-'+r.id+'</td>'+
+      '<td style="font-weight:500;color:'+califColor(r.calif)+'">'+n(r.calif,2)+'</td>'+
+      '<td>'+pill(r.calif)+'</td>'+
+      '<td class="num td-border-l">'+n(r.kgReal)+'</td>'+
+      '<td class="num">'+n(r.kgSemanal)+'</td>'+
+      '<td class="num">'+n(r.kgDiario)+'</td>'+
+      '<td class="num td-border-l">'+n(r.budget)+'</td>'+
+      '<td class="num">'+n(r.pron1w)+'</td>'+
+      '<td class="num">'+n(r.pron3w)+'</td>'+
+      '<td class="num">'+n(r.pron5w)+'</td>'+
+      '<td class="num td-border-l">'+n(r.packout)+'</td>'+
+      '<td class="num-s td-border-l">'+n(r.cPackout,2)+'</td>'+
+      '<td class="num-s">'+n(r.c1w,2)+'</td>'+
+      '<td class="num-s">'+n(r.c3w,2)+'</td>'+
+      '<td class="num-s">'+n(r.c5w,2)+'</td>'+
+      '<td class="num-s">'+n(r.cSemanal,2)+'</td>'+
+      '<td class="num-s">'+n(r.cDiario,2)+'</td>'+
+      '</tr>';
+  }).join('');
+}
+
+function getPrevPeriods(period, cnt) {
+  const idx = DATA.periods.indexOf(period);
+  const res = [];
+  for (let i=1;i<=cnt;i++) res.push(idx-i>=0?DATA.periods[idx-i]:null);
+  return res;
+}
+
+function renderPeriod() {
+  const period = document.getElementById('periodSelect').value;
+  if (\!period) return;
+  const rows = DATA.periodData[period] || [];
+  const pNum = parseInt(period.split('P')[1].split('-')[0]);
+  const pYear = period.split('-')[1];
+  const w1=(pNum-1)*4+1, w2=pNum*4;
+  document.getElementById('periodInfo').innerHTML =
+    '<strong>'+period+'</strong> — Promedio semanas '+w1+'–'+w2+' del año '+pYear+'. Métrica definitiva de evaluación del personal.';
+  const avgs = rows.map(r=>r.avg);
+  const avg = avgs.length?(avgs.reduce((a,b)=>a+b,0)/avgs.length).toFixed(2):'—';
+  document.getElementById('periodMetrics').innerHTML =
+    '<div class="metric-card"><div class="label">Invernaderos evaluados</div><div class="value">'+rows.length+'</div></div>'+
+    '<div class="metric-card"><div class="label">Promedio del periodo</div><div class="value">'+avg+'</div></div>'+
+    '<div class="metric-card"><div class="label">Mejor promedio</div><div class="value">'+(avgs.length?Math.max(...avgs).toFixed(2):'—')+'</div><div class="sub">INV-'+(rows[0]?rows[0].id:'')+'</div></div>'+
+    '<div class="metric-card"><div class="label">Semanas</div><div class="value">'+w1+'–'+w2+'</div><div class="sub">año '+pYear+'</div></div>';
+
+  const top20 = rows.slice(0,20);
+  if (periodBarChart) periodBarChart.destroy();
+  periodBarChart = new Chart(document.getElementById('periodBarChart'), {
+    type:'bar',
+    data:{
+      labels:top20.map(r=>'INV-'+r.id),
+      datasets:[{label:'Promedio',data:top20.map(r=>r.avg),
+        backgroundColor:top20.map(r=>r.avg>=7.5?'#639922':r.avg>=5.5?'#378ADD':'#E24B4A'),
+        borderRadius:3,borderSkipped:false}]
+    },
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.raw.toFixed(2)}}},
+      scales:{
+        x:{min:0,max:10,grid:{color:'#f1efe8'},ticks:{font:{size:11}}},
+        y:{grid:{display:false},ticks:{font:{size:11}}}
+      }
+    }
+  });
+
+  const year = document.getElementById('periodYear').value;
+  const allPeriodsYear = DATA.periods.filter(p => p.split('-')[1]===year);
+  const selectedIds = periodSelected.size > 0 ? [...periodSelected].map(Number) : [];
+  const lineCanvas = document.getElementById('periodLineChart');
+  const legendEl = document.getElementById('periodLineLegend');
+  const noDataEl = document.getElementById('periodLineNoData');
+  if (periodLineChart) periodLineChart.destroy();
+  const displayIds = selectedIds.length > 0 ? selectedIds : rows.map(r => r.id);
+  lineCanvas.style.display = 'block';
+  noDataEl.style.display = 'none';
+  legendEl.innerHTML = displayIds.length <= 8 ? buildLineLegend(displayIds) : '';
+  const datasets = buildLineDatasets(displayIds, DATA.periodSeries, 'p');
+  const periodsWithData = new Set();
+  datasets.forEach(ds => ds.data.filter(pt => pt.x.split('-')[1] === year).forEach(pt => periodsWithData.add(pt.x)));
+  const trimmedPeriods = allPeriodsYear.filter(p => {
+    const pN = parseInt(p.split('P')[1].split('-')[0]);
+    const pNums = [...periodsWithData].map(x => parseInt(x.split('P')[1].split('-')[0]));
+    return pNums.length && pN >= Math.min(...pNums) && pN <= Math.max(...pNums);
+  });
+  const activeLabels = trimmedPeriods.length ? trimmedPeriods : allPeriodsYear;
+  const periodIndexMap = Object.fromEntries(activeLabels.map((p,i) => [p,i]));
+  const alignedDatasets = datasets.map(ds => {
+    const filtered = ds.data.filter(pt => pt.x.split('-')[1] === year);
+    const vals = new Array(activeLabels.length).fill(null);
+    filtered.forEach(pt => { if (periodIndexMap[pt.x] \!== undefined) vals[periodIndexMap[pt.x]] = pt.y; });
+    return { ...ds, data: vals };
+  });
+  const allVals = alignedDatasets.flatMap(ds => ds.data).filter(v => v \!= null);
+  const yMin = allVals.length ? Math.max(0, parseFloat((Math.min(...allVals) - 0.5).toFixed(1))) : 0;
+  const yMax = allVals.length ? Math.min(10, parseFloat((Math.max(...allVals) + 0.5).toFixed(1))) : 10;
+  periodLineChart = new Chart(lineCanvas, {
+    type:'line',
+    data:{ labels: activeLabels, datasets: alignedDatasets },
+    options:{
+      responsive:true, maintainAspectRatio:false, spanGaps: true,
+      plugins:{legend:{display:false},tooltip:{
+        callbacks:{
+          title: items => items[0].label,
+          label: ctx => ' '+ctx.dataset.label+': '+(ctx.parsed.y \!= null ? ctx.parsed.y.toFixed(2) : '—')
+        }
+      }},
+      scales:{
+        x:{type:'category',grid:{color:'#f1efe8'},ticks:{font:{size:11}}},
+        y:{min:yMin,max:yMax,grid:{color:'#f1efe8'},ticks:{font:{size:11}}}
+      }
+    }
+  });
+
+  const prevPeriods = getPrevPeriods(period, 3);
+  const prevLabels = prevPeriods.map(p => p||'—');
+  const prevMaps = prevPeriods.map(pp => {
+    if (\!pp||\!DATA.periodData[pp]) return {};
+    return Object.fromEntries(DATA.periodData[pp].map(r=>[r.id,r.avg]));
+  });
+  const rankMap = Object.fromEntries(rows.map((r,i)=>[r.id,i+1]));
+  const filtered = periodSelected.size>0 ? rows.filter(r=>periodSelected.has(String(r.id))) : rows;
+  document.getElementById('periodCompHead').innerHTML =
+    '<tr><th>#</th><th>Invernadero</th>'+
+    '<th class="curr-header">'+period+' (actual)</th>'+
+    '<th class="prev-header">'+prevLabels[0]+'</th>'+
+    '<th class="prev-header">'+prevLabels[1]+'</th>'+
+    '<th class="prev-header">'+prevLabels[2]+'</th></tr>';
+  document.getElementById('periodCompBody').innerHTML = filtered.map(r => {
+    const rank = rankMap[r.id]||'—';
+    const p1 = prevMaps[0][r.id]\!=null?prevMaps[0][r.id]:null;
+    const p2 = prevMaps[1][r.id]\!=null?prevMaps[1][r.id]:null;
+    const p3 = prevMaps[2][r.id]\!=null?prevMaps[2][r.id]:null;
+    return '<tr>'+
+      '<td>'+rankBadge(rank)+'</td>'+
+      '<td>INV-'+r.id+'</td>'+
+      '<td class="curr-col" style="color:'+califColor(r.avg)+'">'+r.avg.toFixed(2)+delta(r.avg,p1)+'</td>'+
+      '<td class="prev-col">'+(p1\!=null?p1.toFixed(2):'—')+'</td>'+
+      '<td class="prev-col">'+(p2\!=null?p2.toFixed(2):'—')+'</td>'+
+      '<td class="prev-col">'+(p3\!=null?p3.toFixed(2):'—')+'</td>'+
+      '</tr>';
+  }).join('');
+}
+
+function initDashboard() {
+  const weekYears = [...new Set(DATA.weeks.map(w => w.split('-')[1]))].sort();
+  const periodYears = [...new Set(DATA.periods.map(p => p.split('-')[1]))].sort();
+  fillSelect('weekYear', weekYears, true);
+  fillSelect('periodYear', periodYears, true);
+  fillWeekSelect(document.getElementById('weekYear').value);
+  buildMs('week');
+  renderWeekly();
+  fillPeriodSelect(document.getElementById('periodYear').value);
+  buildMs('period');
+  renderPeriod();
+}
+
+// ── Start ───────────────────────────────────────────────────────────────
+loadAndInit();
+</script>
+</body>
+</html>
